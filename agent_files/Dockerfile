@@ -8,15 +8,9 @@ RUN apt update -y && \
 	update-ca-certificates --fresh && \
 	rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update -y
-RUN apt-get install python3 -y
-RUN apt-get install python3-pip -y
-
 ENV PATH=/opt/edge_manager/agent/bin:/home/agent/bin:$PATH
 
 ENV TVM_TENSORRT_MAX_WORKSPACE_SIZE=2147483647
-
-RUN pip3 install dlr
 
 WORKDIR /home/agent
 
