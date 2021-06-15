@@ -20,6 +20,9 @@ In this demo, we will deploy a pre-trained YOLO v4 model using Amazon SageMaker 
 1. In Amazon SageMaker Studio, execute the notebook provided as part of this repo: **`SM_Edge_Demo.ipynb`**
 
 2. Once you have completed the notebook steps, we can download our deployment artifacts to build our containers.
+```
+cd amazon-sagemaker-edge-k8s
+```
 
 3. Execute the following commands to download the artifacts from Amazon S3.
 ```
