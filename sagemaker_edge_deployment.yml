@@ -1,0 +1,76 @@
+# create amazon-sm-edge namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: amazon-sm-edge
+  labels:
+    name: amazon-sm-edge
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amazon-sm-edge-service
+  namespace: amazon-sm-edge
+spec:
+  selector:
+    matchLabels:
+      name: sm-edge-agent-service
+  template:
+    metadata:
+      labels:
+        name: sm-edge-agent-service
+    spec:
+      hostIPC: True
+      containers:
+        - name: smagent
+          image: <aws-account-id>.dkr.ecr.<region>.amazonaws.com/smagent:latest
+          imagePullPolicy: Always
+          workingDir: /home/agent
+          resources:
+            limits:
+              cpu:  400m
+              memory: 1Gi
+            requests:
+              cpu: 400m
+              memory: 1Gi
+          volumeMounts:
+            - name: socket
+              mountPath: /home/agent/sock
+        - name: smapp
+          image: <aws-account-id>.dkr.ecr.<region>.amazonaws.com/smapp:latest
+          imagePullPolicy: Always
+          workingDir: /app
+          ports:
+          - containerPort: 5001
+          resources:
+            limits:
+              cpu:  200m
+              memory: 500Mi
+            requests:
+              cpu: 200m
+              memory: 500Mi
+          volumeMounts:
+            - name: socket
+              mountPath: /home/agent/sock
+      volumes:
+        - name: socket
+          emptyDir: {}
+      terminationGracePeriodSeconds: 900
+
+---
+
+# Service
+kind: Service
+apiVersion: v1
+metadata:
+  name: sm-edge-agent-service
+  namespace: amazon-sm-edge
+spec:
+  selector:
+    name: sm-edge-agent-service
+  ports:
+    - protocol: TCP
+      port: 5001
+      targetPort: 5001
