@@ -1,0 +1,132 @@
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: This template creates the IAM roles necessary to execute the SageMaker Edge Manager tutorial.
+Parameters:
+  S3Bucket:
+    Type: String
+    Default: '*'
+    Description: Enter the name of the S3 bucket where you will store your model artifacts. This is the bucket that SageMaker will have access to.
+
+Resources:
+  SageMakerRole:
+    Type: AWS::IAM::Role
+    DependsOn: SageMakerIoTRole
+    Properties:
+      RoleName: AmazonSageMaker-ExecutionRole-EdgeManager
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: SageMaker execution role for running the SageMaker Edge Manager tutorial
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+      Policies:
+        - PolicyName: SageMaker-S3-Access-Edge-Manager
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub
+                    - arn:aws:s3:::${bucket}/
+                    - { bucket: !Ref S3Bucket}
+                  - !Sub
+                    - arn:aws:s3:::${bucket}/*
+                    - { bucket: !Ref S3Bucket}
+                  - !Sub arn:aws:s3:::sagemaker-${AWS::Region}-${AWS::AccountId}/*
+                  - !Sub arn:aws:s3:::sagemaker-${AWS::Region}-${AWS::AccountId}/
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt SageMakerIoTRole.Arn
+              - Effect: Allow
+                Action:
+                  - iot:CreateThing
+                  - iot:CreateThingType
+                  - iot:CreateKeysAndCertificate
+                  - iot:DescribeRoleAlias
+                  - iot:CreatePolicy
+                  - iot:AttachPolicy
+                  - iot:DescribeEndpoint
+                Resource: '*'
+
+  SageMakerIoTRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SageMaker-IoT-Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+          - Effect: Allow
+            Principal:
+              Service:
+                - credentials.iot.amazonaws.com
+            Action:
+             - 'sts:AssumeRole'
+      Description: Allows IoT to call AWS services on your behalf
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSIoTThingsRegistration
+        - arn:aws:iam::aws:policy/service-role/AWSIoTLogging
+        - arn:aws:iam::aws:policy/service-role/AWSIoTRuleActions
+        - arn:aws:iam::aws:policy/service-role/AmazonSageMakerEdgeDeviceFleetPolicy
+
+  UserAssumeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Edge-Manager-User-Role-to-Assume
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action:
+              - 'sts:AssumeRole'
+      Description: Users should assume this role for the Edge Manager tutorial.
+      Policies:
+        - PolicyName: User-Edge-Manager-Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub
+                    - arn:aws:s3:::${bucket}/*
+                    - { bucket: !Ref S3Bucket}
+                  - !Sub arn:aws:s3:::sagemaker-${AWS::Region}-${AWS::AccountId}/*
+              - Effect: Allow
+                Action:
+                  - ecr:CreateRepository
+                  - ecr:PutImage
+                Resource: '*'
+      
+Outputs:
+  SageMakerStudioRole:
+    Description: Role to be set as execution role in SageMaker Studio environment.
+    Value: !GetAtt SageMakerRole.Arn
+  SageMakerIoTRole:
+    Description: Role which gets passed to the Device Fleet during creation.
+    Value: !GetAtt SageMakerIoTRole.Arn
+  UserRole:
+    Description: User role to assume via the CLI.
+    Value: !GetAtt UserAssumeRole.Arn
